@@ -6,12 +6,14 @@ import (
 	"log"
 	"net/http"
 
+	"k8s-pingops/pkg/dns"
 	"k8s-pingops/pkg/telnet"
 )
 
-type TelnetRequest struct {
-	Host string `json:"host"`
-	Port int    `json:"port"`
+type Request struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port,omitempty"`
+	Function string `json:"function"`
 }
 
 type TelnetResponse struct {
@@ -19,27 +21,51 @@ type TelnetResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
+type DNSResponse struct {
+	Success bool     `json:"success"`
+	IPs     []string `json:"ips,omitempty"`
+	Error   string   `json:"error,omitempty"`
+}
+
 func main() {
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 
 	http.HandleFunc("/check", func(w http.ResponseWriter, r *http.Request) {
-		var req TelnetRequest
+		var req Request
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		err := telnet.CheckTelnetConnection(req.Host, req.Port)
-		var res TelnetResponse
-		if err != nil {
-			res = TelnetResponse{Success: false, Error: err.Error()}
-		} else {
-			res = TelnetResponse{Success: true}
-		}
+		switch req.Function {
+		case "telnet":
+			err := telnet.CheckTelnetConnection(req.Host, req.Port)
+			var res TelnetResponse
+			if err != nil {
+				res = TelnetResponse{Success: false, Error: err.Error()}
+			} else {
+				res = TelnetResponse{Success: true}
+			}
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(res); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(res); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		case "dns":
+			ips, err := dns.ResolveDNS(req.Host)
+			var res DNSResponse
+			if err != nil {
+				res = DNSResponse{Success: false, Error: err.Error()}
+			} else {
+				res = DNSResponse{Success: true, IPs: ips}
+			}
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(res); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+
+		default:
+			http.Error(w, "Invalid function", http.StatusBadRequest)
 		}
 	})
 

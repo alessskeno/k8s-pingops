@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telnet Checker</title>
+    <title>Telnet and DNS Checker</title>
     <style>
         body {
             display: flex;
@@ -18,7 +18,7 @@
             color: #333;
             margin-bottom: 20px;
         }
-        #telnet-form {
+        #form-container {
             background-color: #fff;
             padding: 20px;
             border-radius: 5px;
@@ -30,7 +30,7 @@
         label {
             margin-top: 10px;
         }
-        input[type="text"], input[type="number"] {
+        input[type="text"], input[type="number"], select {
             padding: 8px;
             margin-top: 5px;
             border: 1px solid #ccc;
@@ -69,19 +69,37 @@
     </style>
 </head>
 <body>
-    <h1>Telnet Connectivity Checker</h1>
-    <form id="telnet-form">
+    <h1>Connectivity Checker</h1>
+    <div id="form-container">
+        <label for="function">Select Function:</label>
+        <select id="function">
+            <option value="telnet">Telnet</option>
+            <option value="dns">DNS Resolve</option>
+        </select>
         <label for="host">Host:</label>
         <input type="text" id="host" name="host" required>
-        <label for="port">Port:</label>
+        <label for="port" id="port-label">Port:</label>
         <input type="number" id="port" name="port" required>
-        <button type="button" onclick="checkTelnet()">Check</button>
-    </form>
+        <button type="button" onclick="check()">Check</button>
+    </div>
     <div id="loading" class="loader" style="display: none;"></div>
     <p id="result"></p>
 
     <script>
-        function checkTelnet() {
+        document.getElementById('function').addEventListener('change', function() {
+            const portLabel = document.getElementById('port-label');
+            const portInput = document.getElementById('port');
+            if (this.value === 'dns') {
+                portLabel.style.display = 'none';
+                portInput.style.display = 'none';
+            } else {
+                portLabel.style.display = 'block';
+                portInput.style.display = 'block';
+            }
+        });
+
+        function check() {
+            const func = document.getElementById('function').value;
             const host = document.getElementById('host').value;
             const port = document.getElementById('port').value;
             const loading = document.getElementById('loading');
@@ -91,20 +109,32 @@
             loading.style.display = 'block';
             result.textContent = '';
 
+            let requestBody = { host: host, function: func };
+            if (func === 'telnet') {
+                requestBody.port = parseInt(port);
+            }
+
             fetch('/check', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ host, port: parseInt(port) })
+                body: JSON.stringify(requestBody)
             })
             .then(response => response.json())
             .then(data => {
                 // Hide loading spinner
                 loading.style.display = 'none';
-                result.textContent = data.success 
-                    ? 'Connection successful!' 
-                    : `Connection failed: ${data.error}`;
+
+                if (func === 'telnet') {
+                    result.textContent = data.success 
+                        ? 'Telnet connection successful!' 
+                        : `Telnet connection failed: ${data.error}`;
+                } else if (func === 'dns') {
+                    result.textContent = data.success 
+                        ? `DNS resolved: ${data.ips.join(', ')}` 
+                        : `DNS resolution failed: ${data.error}`;
+                }
             })
             .catch(error => {
                 // Hide loading spinner and show error
