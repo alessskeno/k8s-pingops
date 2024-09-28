@@ -7,13 +7,18 @@ import (
 	"net/http"
 
 	"k8s-pingops/pkg/dns"
+	"k8s-pingops/pkg/httpclient"
 	"k8s-pingops/pkg/telnet"
 )
 
 type Request struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port,omitempty"`
-	Function string `json:"function"`
+	Host     string            `json:"host"`
+	Port     int               `json:"port,omitempty"`
+	Function string            `json:"function"`
+	URL      string            `json:"url,omitempty"`
+	Method   string            `json:"method,omitempty"`
+	Body     string            `json:"body,omitempty"`
+	Headers  map[string]string `json:"headers,omitempty"`
 }
 
 type TelnetResponse struct {
@@ -25,6 +30,13 @@ type DNSResponse struct {
 	Success bool     `json:"success"`
 	IPs     []string `json:"ips,omitempty"`
 	Error   string   `json:"error,omitempty"`
+}
+
+type HTTPResponse struct {
+	Success bool   `json:"success"`
+	Status  string `json:"status,omitempty"`
+	Body    string `json:"body,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 func main() {
@@ -59,6 +71,13 @@ func main() {
 			} else {
 				res = DNSResponse{Success: true, IPs: ips}
 			}
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(res); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+
+		case "http":
+			res := httpclient.MakeHTTPRequest(req.URL, req.Method, req.Body, req.Headers)
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(res); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
