@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telnet, DNS, and HTTP Checker</title>
+    <title>Telnet and DNS Checker</title>
     <style>
         body {
             display: flex;
@@ -30,16 +30,11 @@
         label {
             margin-top: 10px;
         }
-        input[type="text"], input[type="number"], textarea, select {
+        input[type="text"], input[type="number"], select {
             padding: 8px;
             margin-top: 5px;
-            margin-bottom: 5px;
             border: 1px solid #ccc;
             border-radius: 4px;
-            width: 100%;
-        }
-        textarea {
-            resize: vertical;
         }
         button {
             margin-top: 20px;
@@ -55,8 +50,9 @@
         }
         #result {
             margin-top: 20px;
-            color: #40E0D0;
+            color: #333;
         }
+        /* Loading spinner styles */
         .loader {
             border: 8px solid #f3f3f3;
             border-top: 8px solid #3498db;
@@ -70,24 +66,6 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
-        /* Prettified JSON Output */
-        pre {
-            background-color: #000;
-            color: #40E0D0;
-            padding: 20px;
-            border-radius: 5px;
-            font-family: 'Ubuntu Mono', monospace;
-            white-space: pre-wrap;  /* Enable wrapping */
-            word-wrap: break-word;  /* Prevent long strings from overflowing */
-            max-width: 80%;
-            margin-top: 20px;
-            display: none;  /* Hidden by default */
-            font-size: 16px;  /* Slightly increase font size */
-            font-weight: 600;  /* Add slight bold effect */
-            line-height: 1.5;  /* Add space between lines for readability */
-        }
-
     </style>
 </head>
 <body>
@@ -97,108 +75,43 @@
         <select id="function">
             <option value="telnet">Telnet</option>
             <option value="dns">DNS Resolve</option>
-            <option value="http">HTTP Request</option>
         </select>
-
-        <!-- Telnet/DNS Fields -->
-        <div id="telnet-dns-fields">
-            <label for="host">Host:</label>
-            <input type="text" id="host" name="host" required>
-            <label for="port" id="port-label">Port:</label>
-            <input type="number" id="port" name="port" required>
-        </div>
-
-        <!-- HTTP Fields -->
-        <div id="http-fields" style="display: none;">
-            <label for="url">URL:</label>
-            <input type="text" id="url" name="url" required>
-
-            <label for="method">HTTP Method:</label>
-            <select id="method">
-                <option value="GET">GET</option>
-                <option value="POST">POST</option>
-                <option value="PUT">PUT</option>
-                <option value="DELETE">DELETE</option>
-            </select>
-
-            <label for="body">Body (optional):</label>
-            <textarea id="body" name="body" rows="4"></textarea>
-
-            <label for="headers">Headers (JSON format, optional):</label>
-            <textarea id="headers" name="headers" rows="3" placeholder='{"Content-Type": "application/json"}'></textarea>
-        </div>
-
+        <label for="host">Host:</label>
+        <input type="text" id="host" name="host" required>
+        <label for="port" id="port-label">Port:</label>
+        <input type="number" id="port" name="port" required>
         <button type="button" onclick="check()">Check</button>
     </div>
-
-    <!-- Loading Spinner -->
     <div id="loading" class="loader" style="display: none;"></div>
-
-    <!-- Result Area -->
-    <pre id="result"></pre>
+    <p id="result"></p>
 
     <script>
-        // Handle function selection and form field visibility
         document.getElementById('function').addEventListener('change', function() {
-            const telnetDNSFields = document.getElementById('telnet-dns-fields');
-            const httpFields = document.getElementById('http-fields');
             const portLabel = document.getElementById('port-label');
             const portInput = document.getElementById('port');
-
-            if (this.value === 'http') {
-                telnetDNSFields.style.display = 'none';
-                httpFields.style.display = 'block';
+            if (this.value === 'dns') {
+                portLabel.style.display = 'none';
+                portInput.style.display = 'none';
             } else {
-                telnetDNSFields.style.display = 'block';
-                httpFields.style.display = 'none';
-                if (this.value === 'dns') {
-                    portLabel.style.display = 'none';
-                    portInput.style.display = 'none';
-                } else {
-                    portLabel.style.display = 'block';
-                    portInput.style.display = 'block';
-                }
+                portLabel.style.display = 'block';
+                portInput.style.display = 'block';
             }
         });
 
-        // Function to handle form submission
         function check() {
             const func = document.getElementById('function').value;
             const host = document.getElementById('host').value;
             const port = document.getElementById('port').value;
-            const url = document.getElementById('url').value;
-            const method = document.getElementById('method').value;
-            const body = document.getElementById('body').value;
-            const headers = document.getElementById('headers').value;
-
             const loading = document.getElementById('loading');
             const result = document.getElementById('result');
 
-            // Show loading spinner and clear result
+            // Show loading spinner and hide result
             loading.style.display = 'block';
             result.textContent = '';
-            result.style.display = 'none';  // Hide the result initially
 
-            let requestBody = { function: func };
+            let requestBody = { host: host, function: func };
             if (func === 'telnet') {
-                requestBody.host = host;
                 requestBody.port = parseInt(port);
-            } else if (func === 'dns') {
-                requestBody.host = host;
-            } else if (func === 'http') {
-                requestBody.url = url;
-                requestBody.method = method;
-                requestBody.body = body;
-
-                if (headers) {
-                    try {
-                        requestBody.headers = JSON.parse(headers);
-                    } catch (e) {
-                        alert("Invalid JSON format for headers");
-                        loading.style.display = 'none';
-                        return;
-                    }
-                }
             }
 
             fetch('/check', {
@@ -210,30 +123,23 @@
             })
             .then(response => response.json())
             .then(data => {
-                loading.style.display = 'none';  // Hide loading spinner
+                // Hide loading spinner
+                loading.style.display = 'none';
 
-                let parsedBody;
-                try {
-                    parsedBody = JSON.parse(data.body);  // Attempt to parse the body as JSON
-                } catch (e) {
-                    parsedBody = data.body;  // If it's not valid JSON, just use the raw body
+                if (func === 'telnet') {
+                    result.textContent = data.success 
+                        ? 'Telnet connection successful!' 
+                        : `Telnet connection failed: ${data.error}`;
+                } else if (func === 'dns') {
+                    result.textContent = data.success 
+                        ? `DNS resolved: ${data.ips.join(', ')}` 
+                        : `DNS resolution failed: ${data.error}`;
                 }
-
-                // Display the status and the prettified response
-                result.textContent = `Status: ${data.status}\n\n`;  // Show the status code first
-
-                if (typeof parsedBody === 'object') {
-                    result.textContent += JSON.stringify(parsedBody, null, 4);  // Prettify JSON response
-                } else {
-                    result.textContent += parsedBody;  // Show raw response if it's not JSON
-                }
-
-                result.style.display = 'block';  // Show the result when response is received
             })
             .catch(error => {
-                loading.style.display = 'none';  // Hide loading spinner
+                // Hide loading spinner and show error
+                loading.style.display = 'none';
                 result.textContent = `Error: ${error}`;
-                result.style.display = 'block';  // Show the error result
             });
         }
     </script>
