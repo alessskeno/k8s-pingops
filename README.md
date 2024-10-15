@@ -18,7 +18,7 @@
  ### Prerequisites
  1. **Kubernetes Cluster**: Make sure you have a running Kubernetes cluster.
  2. **kubectl CLI**: To interact with your Kubernetes cluster.
- 3. **Terraform**: For those using the `[terraform-kubernetes-provider](https://github.com/hashicorp/terraform-provider-kubernetes)` to manage the cluster resources.
+ 3. **Terraform**: For those using the [terraform-kubernetes-provider](https://github.com/hashicorp/terraform-provider-kubernetes) to manage the cluster resources.
  4. **Docker**: (Optional) For local testing before pushing the container to your cluster.
 
  ### Docker Hub
